@@ -1,0 +1,8 @@
+flask.log
+node.log
+supervisor.log
+history.json
+.venv/
+node_modules/
+.env
+__pycache__/

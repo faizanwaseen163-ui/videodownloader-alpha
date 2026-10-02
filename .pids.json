@@ -1,0 +1,9 @@
+{
+  "supervisor_pid": 29292,
+  "node_pid": 0,
+  "flask_pid": 29294,
+  "node_port": 7423,
+  "flask_port": 7424,
+  "started_at": 1790927072.127982,
+  "download_dir": "/home/fiazan/Downloads/VideoDownloader"
+}

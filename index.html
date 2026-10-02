@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#08080a" />
+<title>VideoDownloader</title>
+
+<!-- Critical fallback CSS (readable even if CDN fails) -->
+<style>
+  :root {
+    --ink: #08080a;
+    --surface: #101014;
+    --edge: #1c1c22;
+    --paper: #e8e8ec;
+    --dust: #8a8a95;
+    --blood: #b91c1c;
+    --ember: #ef4444;
+    --moss: #10b981;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100%; }
+  body {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    line-height: 1.55;
+    position: relative;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace; }
+
+  /* ===== Horror atmosphere layers (pure CSS) ===== */
+  .fog, .fog-2, .vignette, .grain {
+    position: fixed; inset: 0; pointer-events: none;
+  }
+  .fog {
+    z-index: -3;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 30%, rgba(120, 12, 20, 0.28), transparent 65%),
+      radial-gradient(ellipse 50% 60% at 80% 70%, rgba(60, 10, 40, 0.22), transparent 60%),
+      radial-gradient(ellipse 70% 40% at 50% 100%, rgba(30, 8, 12, 0.55), transparent 60%);
+    animation: fogDrift 40s ease-in-out infinite alternate;
+  }
+  .fog-2 {
+    z-index: -2;
+    background:
+      radial-gradient(ellipse 40% 30% at 70% 20%, rgba(180, 20, 30, 0.14), transparent 65%),
+      radial-gradient(ellipse 60% 40% at 30% 80%, rgba(90, 15, 60, 0.10), transparent 60%);
+    animation: fogDrift2 55s ease-in-out infinite alternate;
+    mix-blend-mode: screen;
+  }
+  @keyframes fogDrift {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(2%, -1%, 0) scale(1.06); }
+    100% { transform: translate3d(-2%, 1%, 0) scale(1.02); }
+  }
+  @keyframes fogDrift2 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); opacity: .9; }
+    100% { transform: translate3d(-3%, 2%, 0) scale(1.10); opacity: .6; }
+  }
+  .vignette {
+    z-index: -1;
+    background: radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.85) 100%);
+    animation: breathe 9s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.88; }
+  }
+  .grain {
+    z-index: 0;
+    opacity: 0.055;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.8  0 0 0 0 0.8  0 0 0 0 0.8  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation: grainShift 0.9s steps(3) infinite;
+  }
+  @keyframes grainShift {
+    0%   { transform: translate(0, 0); }
+    33%  { transform: translate(-2%, 1%); }
+    66%  { transform: translate(1%, -2%); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* Subtle red flicker on accent elements */
+  @keyframes emberFlicker {
+    0%, 100% { opacity: 0.85; }
+    47%      { opacity: 0.85; }
+    48%      { opacity: 0.55; }
+    49%      { opacity: 0.85; }
+    92%      { opacity: 0.85; }
+    93%      { opacity: 0.65; }
+    94%      { opacity: 0.85; }
+  }
+  .ember { animation: emberFlicker 8s ease-in-out infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fog, .fog-2, .vignette, .grain, .ember { animation: none !important; }
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(185,28,28,0.35); }
+
+  button { font: inherit; cursor: pointer; }
+  a { color: var(--ember); }
+
+  /* Fallback card style in case Tailwind hasn't loaded yet */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    border-radius: 14px;
+  }
+
+  /* History row buttons */
+  .hbtn{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:5px 11px;font-size:11px;border-radius:6px;
+    border:1px solid #1c1c22;color:#8a8a95;transition:.15s;
+    text-decoration:none;white-space:nowrap;
+  }
+  .hbtn:hover{color:#e8e8ec;border-color:rgba(239,68,68,.5);}
+  .hbtn.primary{background:#b91c1c;color:#fff;border-color:#b91c1c;}
+  .hbtn.primary:hover{background:#ef4444;border-color:#ef4444;}
+  .hbtn.danger:hover{color:#ef4444;border-color:rgba(239,68,68,.6);}
+  .hbtn:disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+</style>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<!-- Tailwind CDN with small custom config -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink:     '#08080a',
+          surface: '#101014',
+          edge:    '#1c1c22',
+          paper:   '#e8e8ec',
+          dust:    '#8a8a95',
+          blood:   '#b91c1c',
+          ember:   '#ef4444',
+          moss:    '#10b981',
+        },
+        fontFamily: {
+          sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'Menlo', 'Consolas', 'monospace'],
+        },
+        borderRadius: {
+          'xl2': '14px',
+        },
+      },
+    },
+  };
+</script>
+
+<!-- QR for network modal -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body class="font-sans antialiased selection:bg-blood/50 selection:text-white">
+
+<!-- Horror atmosphere -->
+<div class="fog" aria-hidden="true"></div>
+<div class="fog-2" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- =========================== HEADER =========================== -->
+<header class="relative z-20 px-5 sm:px-8 pt-5">
+  <div class="max-w-5xl mx-auto flex items-center gap-4 py-3 border-b border-edge/70">
+    <div class="w-8 h-8 rounded-md grid place-items-center bg-blood/15 border border-blood/40 ember">
+      <svg viewBox="0 0 24 24" class="w-4 h-4 text-ember" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>
+      </svg>
+    </div>
+    <div class="font-semibold tracking-tight text-[15px] text-paper">VideoDownloader</div>
+    <div class="hidden sm:block text-xs text-dust/80 mono">4K · 60fps</div>
+
+    <div class="flex-1"></div>
+
+    <div id="status-pill" class="hidden sm:flex items-center gap-2 text-xs text-dust">
+      <span id="status-dot" class="w-1.5 h-1.5 rounded-full bg-dust"></span>
+      <span id="status-text" class="mono">connecting…</span>
+    </div>
+
+    <button id="btn-network" type="button"
+      class="text-xs px-3 py-1.5 rounded-md border border-edge hover:border-ember/60 hover:text-paper text-dust transition"
+      aria-label="Network links">
+      Network
+    </button>
+  </div>
+</header>
+
+<!-- =========================== MAIN =========================== -->
+<main class="relative z-10 max-w-5xl mx-auto px-5 sm:px-8 pb-32 pt-14 sm:pt-20">
+
+  <!-- HERO -->
+  <section class="text-center">
+    <h1 class="text-3xl sm:text-4xl md:text-5xl font-medium tracking-tight text-paper leading-tight">
+      Download video.<br/>
+      <span class="text-dust/70">In silence.</span>
+    </h1>
+    <p class="mt-4 text-sm text-dust max-w-xl mx-auto">
+      Paste a YouTube link. Choose a quality. Watch it arrive.
+    </p>
+
+    <!-- URL input -->
+    <div class="mt-10 max-w-2xl mx-auto">
+      <div id="url-wrap"
+        class="flex flex-col sm:flex-row items-stretch gap-2 p-1.5 rounded-xl2 bg-surface/80 border border-edge transition
+               focus-within:border-ember/50 focus-within:shadow-[0_0_24px_-6px_rgba(185,28,28,0.45)]">
+        <div class="flex-1 flex items-center gap-2 px-3 min-w-0">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-dust shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          <input id="url-input" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+            placeholder="https://www.youtube.com/watch?v=…"
+            class="flex-1 bg-transparent border-0 outline-none text-paper placeholder:text-dust/60 py-3 text-sm min-w-0" />
+          <button id="btn-paste" type="button"
+            class="shrink-0 text-xs text-dust hover:text-paper transition px-2 py-1"
+            aria-label="Paste">
+            Paste
+          </button>
+        </div>
+        <button id="btn-analyze" type="button"
+          class="shrink-0 px-5 py-3 rounded-lg bg-blood hover:bg-ember text-white text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          <span id="analyze-label">Analyze</span>
+          <svg id="analyze-spinner" class="w-3.5 h-3.5 hidden animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.3" stroke-width="3"/>
+            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div id="url-error" class="hidden mt-2 text-xs text-ember text-left px-2"></div>
+    </div>
+  </section>
+
+  <!-- VIDEO CARD -->
+  <section id="video-card" class="hidden mt-12">
+    <div class="rounded-xl2 bg-surface/70 border border-edge p-5 sm:p-6 backdrop-blur-sm">
+      <div class="grid grid-cols-1 md:grid-cols-[minmax(0,300px)_1fr] gap-6">
+        <div class="relative aspect-video rounded-lg overflow-hidden bg-black/60 border border-edge">
+          <img id="v-thumb" alt="" class="w-full h-full object-cover" referrerpolicy="no-referrer" />
+          <div id="v-dur" class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-paper text-[11px] mono"></div>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-start gap-3">
+            <div class="min-w-0 flex-1">
+              <h2 id="v-title" class="text-base sm:text-lg font-medium leading-snug text-paper break-words"></h2>
+              <div class="mt-1.5 text-xs text-dust flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span id="v-channel" class="truncate"></span>
+                <span id="v-views" class="mono text-[11px] opacity-80"></span>
+                <span id="v-date" class="mono text-[11px] opacity-80"></span>
+              </div>
+            </div>
+            <button id="btn-clear-video" class="text-dust hover:text-paper p-1 transition" aria-label="Clear">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+
+          <!-- Mode tabs -->
+          <div class="mt-6 flex gap-1 border-b border-edge/60" role="tablist" aria-label="Mode">
+            <button data-mode="video" class="mode-tab px-3 py-2 text-xs font-medium transition" role="tab">Video</button>
+            <button data-mode="audio" class="mode-tab px-3 py-2 text-xs font-medium transition" role="tab">Audio</button>
+          </div>
+
+          <!-- VIDEO options -->
+          <div id="opts-video" class="mt-5">
+            <div class="text-[11px] uppercase tracking-[0.14em] text-dust/80 mb-3">Quality</div>
+            <div id="quality-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2"></div>
+
+            <div class="text-[11px] uppercase tracking-[0.14em] text-dust/80 mt-6 mb-3">Container</div>
+            <div id="container-grid" class="flex gap-2 flex-wrap">
+              <button data-container="mkv" class="chip-container">MKV</button>
+              <button data-container="mp4" class="chip-container">MP4</button>
+            </div>
+          </div>
+
+          <!-- AUDIO options -->
+          <div id="opts-audio" class="hidden mt-5">
+            <div class="text-[11px] uppercase tracking-[0.14em] text-dust/80 mb-3">Format</div>
+            <div id="audio-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
+          </div>
+
+          <div class="mt-6 flex flex-wrap items-center gap-4">
+            <button id="btn-download"
+              class="px-5 py-2.5 rounded-lg bg-blood hover:bg-ember text-white text-sm font-medium transition disabled:opacity-60 disabled:cursor-not-allowed">
+              Download
+            </button>
+            <div id="dl-hint" class="text-xs text-dust"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACTIVE DOWNLOADS -->
+  <section id="active-section" class="hidden mt-14">
+    <div class="flex items-end justify-between mb-4">
+      <h2 class="text-sm font-medium tracking-tight text-dust uppercase tracking-[0.14em]">Active</h2>
+      <div id="active-count" class="text-xs text-dust mono"></div>
+    </div>
+    <div id="active-list" class="space-y-3"></div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="mt-16">
+    <div class="flex items-end justify-between mb-4 gap-3 flex-wrap">
+      <h2 class="text-sm font-medium text-dust uppercase tracking-[0.14em]">Library</h2>
+      <div id="history-total" class="text-xs text-dust mono"></div>
+    </div>
+
+    <div class="rounded-xl2 bg-surface/60 border border-edge">
+      <!-- Toolbar -->
+      <div class="flex flex-col sm:flex-row gap-3 p-3 border-b border-edge/70">
+        <div class="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-ink/40 border border-edge">
+          <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-dust" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="hist-search" type="search" placeholder="Search…"
+            class="flex-1 bg-transparent outline-none border-0 text-xs placeholder:text-dust/60 text-paper" />
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <div class="inline-flex p-0.5 rounded-lg bg-ink/40 border border-edge" role="tablist">
+            <button data-filter="all" class="hist-filter px-3 py-1.5 rounded-md text-[11px] font-medium">All</button>
+            <button data-filter="video" class="hist-filter px-3 py-1.5 rounded-md text-[11px] font-medium">Video</button>
+            <button data-filter="audio" class="hist-filter px-3 py-1.5 rounded-md text-[11px] font-medium">Audio</button>
+          </div>
+          <select id="hist-sort"
+            class="px-3 py-1.5 rounded-lg bg-ink/40 border border-edge text-[11px] outline-none text-dust">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="size">Size</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="history-list" class="divide-y divide-edge/60"></div>
+      <div id="history-empty" class="hidden text-center py-16 px-6">
+        <div class="w-10 h-10 mx-auto rounded-md border border-edge grid place-items-center">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-dust" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>
+          </svg>
+        </div>
+        <div class="mt-3 text-sm text-paper">Nothing here yet</div>
+        <div class="text-xs text-dust mt-1">Paste a link to begin.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- =========================== FOOTER =========================== -->
+<footer class="relative z-10 max-w-5xl mx-auto px-5 sm:px-8 pb-10">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center gap-2 text-[11px] text-dust/70 border-t border-edge/60 pt-5">
+    <span>Downloads:</span>
+    <span id="foot-dir" class="mono text-dust truncate max-w-[60vw]">…</span>
+    <div class="flex-1"></div>
+    <span class="italic">For personal use with content you have the right to download.</span>
+  </div>
+</footer>
+
+<!-- =========================== NETWORK MODAL =========================== -->
+<div id="net-modal" class="hidden fixed inset-0 z-50">
+  <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" data-close="1"></div>
+  <div class="relative max-w-md mx-auto mt-[8vh] mx-5">
+    <div class="rounded-xl2 bg-surface border border-edge p-6 max-h-[80vh] overflow-y-auto shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)]">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-[11px] uppercase tracking-[0.14em] text-dust/80">Network</div>
+          <h3 class="text-base font-medium text-paper mt-1">Open on your phone</h3>
+        </div>
+        <button class="text-dust hover:text-paper p-1" data-close="1" aria-label="Close">
+          <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.14em] text-dust/70 mb-2">Recommended</div>
+          <div class="flex items-center gap-2 p-3 rounded-lg bg-blood/10 border border-blood/40">
+            <div class="flex-1 mono text-xs truncate text-paper" id="net-primary">—</div>
+            <button data-copy="net-primary" class="copy-btn text-[11px] text-dust hover:text-paper px-2 py-1 transition">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.14em] text-dust/70 mb-2">This PC</div>
+          <div class="flex items-center gap-2 p-3 rounded-lg bg-ink/60 border border-edge">
+            <div class="flex-1 mono text-xs truncate text-paper" id="net-local">—</div>
+            <button data-copy="net-local" class="copy-btn text-[11px] text-dust hover:text-paper px-2 py-1 transition">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.14em] text-dust/70 mb-2">Name link</div>
+          <div class="flex items-center gap-2 p-3 rounded-lg bg-ink/60 border border-edge">
+            <div class="flex-1 mono text-xs truncate text-paper" id="net-mdns">—</div>
+            <button data-copy="net-mdns" class="copy-btn text-[11px] text-dust hover:text-paper px-2 py-1 transition">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.14em] text-dust/70 mb-2">All addresses</div>
+          <div id="net-addrs" class="space-y-2"></div>
+        </div>
+
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.14em] text-dust/70 mb-2">QR</div>
+          <div id="qr-wrap" class="p-4 rounded-lg bg-white grid place-items-center">
+            <div id="qr"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== CONFIRM MODAL =========================== -->
+<div id="confirm-modal" class="hidden fixed inset-0 z-50">
+  <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" data-cancel="1"></div>
+  <div class="relative max-w-sm mx-auto mt-[24vh] mx-5">
+    <div class="rounded-xl2 bg-surface border border-edge p-6">
+      <h3 id="confirm-title" class="text-base font-medium text-paper">Are you sure?</h3>
+      <p id="confirm-body" class="text-xs text-dust mt-2 leading-relaxed"></p>
+      <label id="confirm-check-wrap" class="hidden mt-4 flex items-center gap-2 text-xs text-dust">
+        <input id="confirm-check" type="checkbox" class="w-3.5 h-3.5 accent-blood" />
+        <span>Also delete the file from disk</span>
+      </label>
+      <div class="mt-5 flex justify-end gap-2">
+        <button data-cancel="1" class="px-3 py-1.5 rounded-md text-xs text-dust hover:text-paper border border-edge transition">Cancel</button>
+        <button id="confirm-ok" class="px-3 py-1.5 rounded-md bg-blood hover:bg-ember text-white text-xs font-medium transition">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================== TOASTS =========================== -->
+<!-- FIX #1: replaced invalid `calc(100vw-2rem)` with simple `90vw` -->
+<div id="toasts" class="fixed bottom-4 right-4 z-[60] space-y-2 w-[min(340px,90vw)]"></div>
+
+<!-- =========================== APP SCRIPT =========================== -->
+<script>
+"use strict";
+/* =========================================================================
+ *  VideoDownloader front-end
+ *  Same logic as before — only the visuals changed.
+ * ========================================================================= */
+
+// ---------- helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function fmtBytes(n) {
+  if (!n || n < 0) return "—";
+  const u = ["B","KB","MB","GB","TB"]; let i = 0, v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(v >= 100 || i === 0 ? 0 : v >= 10 ? 1 : 2)} ${u[i]}`;
+}
+function fmtSpeed(bps) { return bps > 0 ? fmtBytes(bps) + "/s" : "—"; }
+function fmtEta(s) {
+  if (s == null || !isFinite(s) || s <= 0) return "—";
+  s = Math.round(s);
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), ss = s%60;
+  return h ? `${h}h ${m}m` : m ? `${m}m ${ss}s` : `${ss}s`;
+}
+function fmtDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return d.toLocaleString(undefined, { year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+function fmtViews(n) {
+  if (!n) return "";
+  if (n >= 1e9) return (n/1e9).toFixed(1) + "B views";
+  if (n >= 1e6) return (n/1e6).toFixed(1) + "M views";
+  if (n >= 1e3) return (n/1e3).toFixed(1) + "K views";
+  return n + " views";
+}
+function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta); resolve();
+    } catch (e) { reject(e); }
+  });
+}
+
+// ---------- API wrapper ----------
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    method: opts.method || "GET",
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    cache: "no-store",
+  });
+  let data = null;
+  try { data = await res.json(); } catch (_) { data = null; }
+  if (!data || typeof data !== "object") throw new Error("Bad JSON response from server");
+  if (!data.ok) {
+    const e = data.error || {};
+    const err = new Error(e.message || "Request failed");
+    err.code = e.code || "UNKNOWN";
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+// ---------- toasts ----------
+function toast(msg, kind = "info", ms = 4200) {
+  const el = document.createElement("div");
+  const accent = kind === "success" ? "border-moss/50" : kind === "error" ? "border-ember/50" : "border-edge";
+  const dotColor = kind === "success" ? "bg-moss" : kind === "error" ? "bg-ember" : "bg-dust";
+  el.className = `rounded-lg bg-surface/95 border ${accent} px-4 py-3 text-xs text-paper backdrop-blur-sm shadow-[0_10px_30px_-10px_rgba(0,0,0,0.9)] flex items-start gap-3`;
+  el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${dotColor} mt-1.5 shrink-0"></span><div class="flex-1 leading-relaxed break-words">${escapeHtml(msg)}</div>`;
+  $("#toasts").appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity .3s, transform .3s";
+    el.style.opacity = "0"; el.style.transform = "translateY(6px)";
+    setTimeout(() => el.remove(), 320);
+  }, ms);
+}
+
+// ---------- store ----------
+const store = {
+  health: null,
+  network: null,
+  video: null,
+  selectedQuality: null,
+  selectedAudio: "mp3-192",
+  selectedContainer: "mkv",
+  mode: "video",
+  jobs: new Map(),
+  history: [],
+  historyFilter: "all",
+  historyQuery: "",
+  historySort: "newest",
+  sseStatus: "connecting",
+};
+
+// ---------- debounced render ----------
+const pending = { active: false };
+function schedule(fn) {
+  if (pending.active) return;
+  pending.active = true;
+  requestAnimationFrame(() => {
+    pending.active = false;
+    try { fn(); } catch (e) { console.error(e); }
+  });
+}
+
+// ---------- status ----------
+function renderStatus() {
+  const dot = $("#status-dot"), txt = $("#status-text");
+  const map = {
+    online:       ["bg-moss", "online"],
+    connecting:   ["bg-dust animate-pulse", "connecting…"],
+    reconnecting: ["bg-ember animate-pulse", "reconnecting…"],
+    offline:      ["bg-ember", "offline"],
+  };
+  const [cls, label] = map[store.sseStatus] || map.offline;
+  dot.className = `w-1.5 h-1.5 rounded-full ${cls}`;
+  txt.textContent = label;
+  txt.className = "mono " + (store.sseStatus === "online" ? "text-moss" : "text-dust");
+}
+
+// ---------- video card ----------
+function renderVideoCard() {
+  const wrap = $("#video-card");
+  if (!store.video) { wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+
+  const v = store.video.video || {};
+  $("#v-title").textContent = v.title || "";
+  $("#v-channel").textContent = v.channel || "";
+  $("#v-views").textContent = fmtViews(v.view_count);
+  $("#v-date").textContent = v.upload_date || "";
+  $("#v-dur").textContent = v.duration_text || "";
+
+  const img = $("#v-thumb");
+  if (v.thumbnail) { img.src = v.thumbnail; img.style.display = ""; }
+  else { img.removeAttribute("src"); img.style.display = "none"; }
+
+  // mode tabs
+  $$(".mode-tab").forEach(t => {
+    const on = t.dataset.mode === store.mode;
+    t.setAttribute("aria-selected", on ? "true" : "false");
+    t.className = "mode-tab px-3 py-2 text-xs font-medium transition " +
+      (on ? "text-paper border-b-2 border-blood -mb-px" : "text-dust hover:text-paper border-b-2 border-transparent -mb-px");
+  });
+  $("#opts-video").classList.toggle("hidden", store.mode !== "video");
+  $("#opts-audio").classList.toggle("hidden", store.mode !== "audio");
+
+  // qualities
+  const qs = (store.video.qualities || []).slice().sort((a,b) => (b.height-a.height) || (b.fps-a.fps));
+  const qGrid = $("#quality-grid");
+  qGrid.innerHTML = qs.map(q => {
+    const on = store.selectedQuality === q.key;
+    const fps60 = (q.fps || 0) >= 50;
+    const sizeTxt = q.est_size_bytes ? `~${fmtBytes(q.est_size_bytes)}` : "";
+    return `
+      <button type="button" data-qkey="${escapeHtml(q.key)}"
+        class="quality-chip text-left p-3 rounded-lg border transition ${on
+          ? "bg-blood/10 border-blood/60"
+          : "bg-ink/40 border-edge hover:border-ember/40"}">
+        <div class="flex items-center justify-between gap-2">
+          <div class="font-medium text-sm text-paper">${escapeHtml(q.label)}</div>
+          ${fps60 ? '<span class="text-[9px] mono px-1.5 py-0.5 rounded bg-blood/25 text-ember border border-blood/40">60</span>' : ""}
+        </div>
+        <div class="text-[10px] text-dust mt-1.5 flex items-center gap-2 flex-wrap">
+          ${q.hdr ? '<span class="text-[9px] mono px-1.5 py-0.5 rounded bg-ember/15 text-ember border border-ember/30">HDR</span>' : ""}
+          ${sizeTxt ? `<span class="mono">${escapeHtml(sizeTxt)}</span>` : ""}
+        </div>
+      </button>`;
+  }).join("");
+  if (!qs.length) qGrid.innerHTML = `<div class="text-xs text-dust">No downloadable video qualities found.</div>`;
+
+  // containers
+  $$(".chip-container").forEach(b => {
+    const on = b.dataset.container === store.selectedContainer;
+    b.className = "chip-container px-4 py-1.5 rounded-lg text-xs font-medium border transition " +
+      (on ? "bg-blood/15 border-blood/60 text-paper"
+          : "bg-ink/40 border-edge text-dust hover:text-paper hover:border-ember/40");
+  });
+
+  // audio
+  const aGrid = $("#audio-grid");
+  aGrid.innerHTML = (store.video.audio_options || []).map(a => {
+    const on = store.selectedAudio === a.key;
+    return `
+      <button type="button" data-akey="${escapeHtml(a.key)}"
+        class="audio-chip p-3 rounded-lg border text-xs transition text-left ${on
+          ? "bg-blood/10 border-blood/60 text-paper"
+          : "bg-ink/40 border-edge text-dust hover:text-paper hover:border-ember/40"}">
+        ${escapeHtml(a.label)}
+      </button>`;
+  }).join("");
+
+  // hint
+  const sel = qs.find(q => q.key === store.selectedQuality);
+  const hint = $("#dl-hint");
+  if (store.mode === "video" && sel && sel.height > 1080) {
+    hint.textContent = "4K uses VP9/AV1 — play it with VLC.";
+  } else if (store.mode === "video" && sel) {
+    hint.textContent = `${sel.label}${(sel.fps || 0) >= 50 ? " @ 60fps" : ""} · ${store.selectedContainer.toUpperCase()}`;
+  } else {
+    hint.textContent = "";
+  }
+}
+
+// ---------- active jobs ----------
+const STAGES = ["video", "audio", "merging", "done"];
+const STAGE_LABEL = { video:"Video", audio:"Audio", merging:"Merging", done:"Done" };
+
+function renderActive() {
+  const list = $("#active-list");
+  const section = $("#active-section");
+  const jobs = Array.from(store.jobs.values())
+    .filter(j => j.status !== "finished")
+    .sort((a,b) => b.created_at - a.created_at);
+
+  section.classList.toggle("hidden", jobs.length === 0);
+  $("#active-count").textContent = jobs.length ? `${jobs.length}` : "";
+
+  list.innerHTML = jobs.map(j => {
+    const pct = Math.max(0, Math.min(100, j.percent || 0));
+    const stageIdx = STAGES.indexOf(j.stage || "video");
+    const stepper = STAGES.map((s, i) => {
+      const active = i === stageIdx;
+      const done = i < stageIdx;
+      const dot = active ? "bg-blood ember" : done ? "bg-moss" : "bg-edge";
+      return `
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full ${dot}"></span>
+          <span class="text-[10px] mono ${active || done ? "text-paper" : "text-dust/70"}">${STAGE_LABEL[s]}</span>
+        </div>`;
+    }).join('<span class="w-3 h-px bg-edge"></span>');
+
+    let statusTxt = j.status;
+    if (j.status === "downloading") statusTxt = "Downloading";
+    if (j.status === "merging") statusTxt = "Merging…";
+    if (j.status === "starting") statusTxt = "Starting…";
+    if (j.status === "queued") statusTxt = "Queued";
+    if (j.status === "error") statusTxt = j.error?.message || "Error";
+    if (j.status === "cancelled") statusTxt = "Cancelled";
+
+    const actions = (j.status === "error" || j.status === "cancelled")
+      ? `<button data-retry="${escapeHtml(j.id)}" class="text-[11px] px-2.5 py-1 rounded-md border border-edge text-dust hover:text-paper transition">Retry</button>
+         <button data-dismiss="${escapeHtml(j.id)}" class="text-[11px] px-2.5 py-1 rounded-md text-dust hover:text-paper transition">Dismiss</button>`
+      : `<button data-cancel="${escapeHtml(j.id)}" class="text-[11px] px-2.5 py-1 rounded-md border border-edge text-dust hover:text-ember hover:border-ember/50 transition">Cancel</button>`;
+
+    return `
+      <div class="rounded-xl2 bg-surface/70 border border-edge p-4">
+        <div class="flex items-start gap-4">
+          <div class="w-20 h-12 sm:w-24 sm:h-14 rounded-md overflow-hidden bg-black/60 border border-edge shrink-0">
+            ${j.thumbnail ? `<img src="${escapeHtml(j.thumbnail)}" referrerpolicy="no-referrer" class="w-full h-full object-cover" alt="" />` : ""}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-medium text-sm text-paper truncate">${escapeHtml(j.title || "Fetching…")}</div>
+                <div class="text-[11px] text-dust truncate">${escapeHtml(j.channel || "")}</div>
+              </div>
+              <div class="shrink-0 text-[11px] mono text-dust">${escapeHtml(j.quality_label || "")}${(j.fps||0)>=50 ? " · 60fps" : ""}</div>
+            </div>
+
+            <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] mono text-dust">
+              <span>${escapeHtml(statusTxt)}</span>
+              <span>${escapeHtml(fmtBytes(j.downloaded_bytes))} / ${escapeHtml(fmtBytes(j.total_bytes))}</span>
+              <span>${escapeHtml(fmtSpeed(j.speed_bps))}</span>
+              <span>ETA ${escapeHtml(fmtEta(j.eta_s))}</span>
+            </div>
+
+            <div class="mt-3 h-1 rounded-full bg-ink/60 overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-blood to-ember transition-[width] duration-300"
+                   style="width:${pct.toFixed(2)}%"></div>
+            </div>
+
+            <div class="mt-3 flex items-center justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-1.5 flex-wrap">${stepper}</div>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] mono text-dust">${pct.toFixed(1)}%</span>
+                ${actions}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ---------- history ----------
+function filteredHistory() {
+  let items = store.history.slice();
+  if (store.historyFilter !== "all") items = items.filter(i => i.kind === store.historyFilter);
+  const q = store.historyQuery.trim().toLowerCase();
+  if (q) items = items.filter(i =>
+    (i.title||"").toLowerCase().includes(q) ||
+    (i.channel||"").toLowerCase().includes(q) ||
+    (i.filename||"").toLowerCase().includes(q));
+  const s = store.historySort;
+  items.sort((a,b) => {
+    if (s === "newest") return (b.created_at||0) - (a.created_at||0);
+    if (s === "oldest") return (a.created_at||0) - (b.created_at||0);
+    if (s === "size") return (b.size_bytes||0) - (a.size_bytes||0);
+    if (s === "name") return (a.title||"").localeCompare(b.title||"");
+    return 0;
+  });
+  return items;
+}
+
+function renderHistory() {
+  const list = $("#history-list");
+  const empty = $("#history-empty");
+  const items = filteredHistory();
+  const isHost = !!(store.health && store.health.is_host);
+  const total = items.reduce((n, i) => n + (i.size_bytes||0), 0);
+  $("#history-total").textContent = items.length ? `${items.length} · ${fmtBytes(total)}` : "";
+
+  if (!items.length) { list.innerHTML = ""; empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+
+  list.innerHTML = items.map(it => {
+    const isVideo = it.kind === "video";
+    const missing = it.exists === false;
+    const fps60 = (it.fps || 0) >= 50;
+    const hostBtns = isHost
+      ? `<button data-open="${escapeHtml(it.id)}" class="hbtn" ${missing?'disabled':''}>Open</button>
+         <button data-folder="${escapeHtml(it.id)}" class="hbtn" ${missing?'disabled':''}>Folder</button>`
+      : `<button class="hbtn" disabled title="Host PC only">Open</button>
+         <button class="hbtn" disabled title="Host PC only">Folder</button>`;
+
+    // FIX #2: mobile now shows Save + Del (Open/Folder remain host-only on desktop).
+    return `
+      <div class="flex items-center gap-3 sm:gap-4 px-4 py-3 hover:bg-ink/30 transition ${missing?'opacity-60':''}">
+        <div class="w-16 h-10 sm:w-20 sm:h-12 rounded-md overflow-hidden bg-black/60 border border-edge shrink-0">
+          ${it.thumbnail ? `<img src="${escapeHtml(it.thumbnail)}" referrerpolicy="no-referrer" class="w-full h-full object-cover" alt="" />` : ""}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium text-sm text-paper truncate">${escapeHtml(it.title || it.filename)}</div>
+          <div class="text-[11px] text-dust truncate flex items-center gap-2 mt-0.5 flex-wrap">
+            <span class="truncate max-w-[40vw] sm:max-w-none">${escapeHtml(it.channel || "")}</span>
+            <span class="opacity-40 hidden sm:inline">·</span>
+            <span class="mono">${escapeHtml((it.quality_label||"").toString())}</span>
+            ${fps60 ? '<span class="opacity-40">·</span><span class="mono">60fps</span>' : ""}
+            <span class="opacity-40">·</span>
+            <span class="mono uppercase">${escapeHtml((it.container||"").toUpperCase())}</span>
+            ${missing ? '<span class="text-ember ml-1">missing</span>' : ""}
+          </div>
+        </div>
+        <div class="hidden md:block text-right text-[11px] text-dust mono shrink-0">
+          <div>${escapeHtml(fmtDate(it.created_at))}</div>
+          <div>${escapeHtml(fmtBytes(it.size_bytes))}</div>
+        </div>
+        <div class="hidden md:flex flex-col gap-1 shrink-0">
+          <a href="/api/file/${escapeHtml(it.id)}" download class="hbtn primary" ${missing?'aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:.5"':''}>Save</a>
+          <div class="flex gap-1">
+            ${hostBtns}
+            <button data-del="${escapeHtml(it.id)}" class="hbtn danger">Del</button>
+          </div>
+        </div>
+        <div class="md:hidden flex flex-col gap-1 shrink-0">
+          <a href="/api/file/${escapeHtml(it.id)}" download class="hbtn primary" ${missing?'aria-disabled="true" tabindex="-1" style="pointer-events:none;opacity:.5"':''}>Save</a>
+          <button data-del="${escapeHtml(it.id)}" class="hbtn danger">Del</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ---------- top render ----------
+function renderAll() { renderStatus(); renderVideoCard(); renderActive(); renderHistory(); renderNetwork(); }
+
+// ---------- network modal ----------
+function renderNetwork() {
+  const n = store.network;
+  if (!n) return;
+  $("#net-primary").textContent = n.primary_url || "—";
+  $("#net-local").textContent = n.local_url || "—";
+  $("#net-mdns").textContent = n.mdns_url || "—";
+  const addrs = $("#net-addrs");
+  addrs.innerHTML = (n.addresses || []).map(a => `
+    <div class="flex items-center gap-2 p-2.5 rounded-lg bg-ink/60 border ${a.primary ? 'border-blood/40' : 'border-edge'}">
+      <div class="flex-1 min-w-0">
+        <div class="text-[9px] uppercase tracking-[0.14em] text-dust/70">${escapeHtml(a.iface)}${a.primary?' · recommended':''}</div>
+        <div class="mono text-[11px] truncate text-paper">${escapeHtml(a.url)}</div>
+      </div>
+      <button data-copy-url="${escapeHtml(a.url)}" class="copy-btn text-[11px] text-dust hover:text-paper px-2 py-1 transition">Copy</button>
+    </div>`).join("");
+  if (!(n.addresses || []).length) {
+    addrs.innerHTML = `<div class="text-[11px] text-ember">No network detected. Connect to Wi-Fi to use it from your phone.</div>`;
+  }
+
+  const qrWrap = $("#qr-wrap"), qrEl = $("#qr");
+  if (n.primary_url && window.QRCode) {
+    try {
+      qrWrap.style.display = "";
+      qrEl.innerHTML = "";
+      new QRCode(qrEl, { text: n.primary_url, width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+    } catch (_) { qrWrap.style.display = "none"; }
+  } else {
+    qrWrap.style.display = "none";
+  }
+}
+
+// ---------- SSE ----------
+let es = null;
+let sseBackoff = 1000;
+function connectSSE() {
+  if (es) { try { es.close(); } catch (_) {} }
+  store.sseStatus = "connecting"; schedule(renderStatus);
+  try { es = new EventSource("/api/events"); }
+  catch (_) {
+    store.sseStatus = "offline"; schedule(renderStatus);
+    setTimeout(connectSSE, sseBackoff = Math.min(sseBackoff * 2, 15000));
+    return;
+  }
+  es.addEventListener("open", () => { store.sseStatus = "online"; sseBackoff = 1000; schedule(renderStatus); });
+  es.addEventListener("snapshot", (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      store.jobs.clear();
+      (d.jobs || []).forEach(j => store.jobs.set(j.id, j));
+      if (d.network) store.network = d.network;
+      schedule(renderAll);
+    } catch (_) {}
+  });
+  es.addEventListener("job", (ev) => {
+    try {
+      const j = JSON.parse(ev.data);
+      store.jobs.set(j.id, j);
+      if (j.status === "finished") {
+        setTimeout(() => { store.jobs.delete(j.id); schedule(renderActive); }, 1200);
+      }
+      schedule(renderActive);
+    } catch (_) {}
+  });
+  es.addEventListener("history", (ev) => {
+    try {
+      const d = JSON.parse(ev.data);
+      if (d.action === "added") store.history.unshift(d.item);
+      else if (d.action === "removed") store.history = store.history.filter(x => x.id !== d.item.id);
+      else if (d.action === "updated") {
+        const i = store.history.findIndex(x => x.id === d.item.id);
+        if (i >= 0) store.history[i] = d.item;
+      }
+      schedule(renderHistory);
+    } catch (_) {}
+  });
+  es.addEventListener("network", (ev) => {
+    try { store.network = JSON.parse(ev.data); schedule(renderNetwork); } catch (_) {}
+  });
+  es.addEventListener("error", () => {
+    store.sseStatus = "reconnecting"; schedule(renderStatus);
+    try { es.close(); } catch (_) {}
+    es = null;
+    setTimeout(() => connectSSE(), sseBackoff = Math.min(sseBackoff * 2, 15000));
+  });
+}
+
+// ---------- confirm modal ----------
+let confirmResolve = null;
+function openConfirm({ title, body, confirmText = "Delete", withCheckbox = false }) {
+  return new Promise((resolve) => {
+    $("#confirm-title").textContent = title;
+    $("#confirm-body").textContent = body;
+    $("#confirm-ok").textContent = confirmText;
+    const wrap = $("#confirm-check-wrap");
+    wrap.classList.toggle("hidden", !withCheckbox);
+    $("#confirm-check").checked = false;
+    $("#confirm-modal").classList.remove("hidden");
+    confirmResolve = resolve;
+  });
+}
+function closeConfirm(v) {
+  $("#confirm-modal").classList.add("hidden");
+  if (confirmResolve) { const r = confirmResolve; confirmResolve = null; r(v); }
+}
+
+// ---------- download actions ----------
+async function analyze() {
+  const raw = $("#url-input").value.trim();
+  const errEl = $("#url-error");
+  errEl.classList.add("hidden");
+  if (!raw) { errEl.textContent = "Please paste a YouTube link."; errEl.classList.remove("hidden"); return; }
+
+  const btn = $("#btn-analyze"), lbl = $("#analyze-label"), sp = $("#analyze-spinner");
+  btn.disabled = true; lbl.textContent = "Analyzing"; sp.classList.remove("hidden");
+  try {
+    const data = await api("/api/info", { method: "POST", body: { url: raw } });
+    store.video = data;
+    const qs = (data.qualities || []).slice().sort((a,b) => (b.height-a.height) || (b.fps-a.fps));
+    store.selectedQuality = qs.length ? qs[0].key : null;
+    store.mode = "video";
+    store.selectedContainer = "mkv";
+    store.selectedAudio = "mp3-192";
+    schedule(renderVideoCard);
+    toast("Ready.", "success");
+  } catch (e) {
+    errEl.textContent = e.message || "Failed to analyze.";
+    errEl.classList.remove("hidden");
+    toast(e.message || "Analyze failed.", "error");
+  } finally {
+    btn.disabled = false; lbl.textContent = "Analyze"; sp.classList.add("hidden");
+  }
+}
+
+async function startDownload() {
+  if (!store.video) return;
+  const url = $("#url-input").value.trim();
+  const body = {
+    url,
+    kind: store.mode,
+    quality_key: store.mode === "video" ? (store.selectedQuality || "") : "",
+    container: store.mode === "video" ? store.selectedContainer : "mkv",
+    audio_key: store.selectedAudio,
+  };
+  const btn = $("#btn-download");
+  btn.disabled = true;
+  try { await api("/api/download", { method: "POST", body }); toast("Queued.", "success"); }
+  catch (e) { toast(e.message || "Could not start.", "error"); }
+  finally { btn.disabled = false; }
+}
+
+async function openHistoryItem(id) {
+  try { await api(`/api/history/${id}/open`, { method:"POST" }); }
+  catch (e) { toast(e.message, "error"); }
+}
+async function openHistoryFolder(id) {
+  try { await api(`/api/history/${id}/open-folder`, { method:"POST" }); }
+  catch (e) { toast(e.message, "error"); }
+}
+async function deleteHistoryItem(id) {
+  const it = store.history.find(x => x.id === id);
+  if (!it) return;
+  const hasFile = it.exists !== false;
+  const res = await openConfirm({
+    title: "Delete from history?",
+    body: hasFile ? `"${it.title}" will be removed. Tick the box to also delete the file from disk.`
+                  : `"${it.title}" will be removed.`,
+    confirmText: "Delete",
+    withCheckbox: hasFile,
+  });
+  if (!res) return;
+  try {
+    const del = res.checkbox ? "true" : "false";
+    await api(`/api/history/${id}?delete_file=${del}`, { method: "DELETE" });
+    toast("Removed.", "success");
+  } catch (e) { toast(e.message, "error"); }
+}
+
+// ---------- wiring ----------
+function wire() {
+  $("#btn-network").addEventListener("click", () => $("#net-modal").classList.remove("hidden"));
+
+  $("#net-modal").addEventListener("click", (e) => {
+    if (e.target.dataset.close === "1") $("#net-modal").classList.add("hidden");
+  });
+  $("#confirm-modal").addEventListener("click", (e) => {
+    if (e.target.dataset.cancel === "1") closeConfirm(null);
+  });
+  $("#confirm-ok").addEventListener("click", () => closeConfirm({ checkbox: $("#confirm-check").checked }));
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      $("#net-modal").classList.add("hidden");
+      if (!$("#confirm-modal").classList.contains("hidden")) closeConfirm(null);
+    }
+  });
+
+  // copy buttons
+  document.addEventListener("click", (e) => {
+    const c = e.target.closest(".copy-btn");
+    if (c) {
+      const targetId = c.dataset.copy;
+      const text = targetId ? ($("#" + targetId)?.textContent || "") :
+                   c.dataset.copyUrl ? c.dataset.copyUrl : "";
+      if (text) copyToClipboard(text).then(() => toast("Copied.", "success")).catch(() => toast("Copy failed.", "error"));
+    }
+  });
+
+  $("#url-input").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); analyze(); } });
+
+  ["dragenter","dragover"].forEach(ev => document.addEventListener(ev, (e) => {
+    e.preventDefault();
+    $("#url-wrap").classList.add("border-ember/60");
+  }));
+  ["dragleave","drop"].forEach(ev => document.addEventListener(ev, (e) => {
+    e.preventDefault();
+    if (ev === "dragleave" && e.target !== document) return;
+    $("#url-wrap").classList.remove("border-ember/60");
+    if (ev === "drop") {
+      const t = e.dataTransfer?.getData("text/plain") || e.dataTransfer?.getData("text/uri-list");
+      if (t) { $("#url-input").value = t.trim(); analyze(); }
+    }
+  }));
+
+  $("#btn-paste").addEventListener("click", async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) { $("#url-input").value = t.trim(); $("#url-input").focus(); }
+    } catch (_) { toast("Clipboard blocked — long-press to paste.", "info"); }
+  });
+
+  $("#btn-analyze").addEventListener("click", analyze);
+  $("#btn-download").addEventListener("click", startDownload);
+  $("#btn-clear-video").addEventListener("click", () => {
+    store.video = null; store.selectedQuality = null; schedule(renderVideoCard);
+  });
+
+  document.addEventListener("click", (e) => {
+    const mode = e.target.closest(".mode-tab");
+    if (mode) { store.mode = mode.dataset.mode; schedule(renderVideoCard); return; }
+    const q = e.target.closest(".quality-chip");
+    if (q) { store.selectedQuality = q.dataset.qkey; schedule(renderVideoCard); return; }
+    const c = e.target.closest(".chip-container");
+    if (c) { store.selectedContainer = c.dataset.container; schedule(renderVideoCard); return; }
+    const a = e.target.closest(".audio-chip");
+    if (a) { store.selectedAudio = a.dataset.akey; schedule(renderVideoCard); return; }
+  });
+
+  document.addEventListener("click", async (e) => {
+    const c = e.target.closest("[data-cancel]");
+    if (c) { try { await api(`/api/jobs/${c.dataset.cancel}/cancel`, { method:"POST" }); } catch (err) { toast(err.message, "error"); } return; }
+    const r = e.target.closest("[data-retry]");
+    if (r) { try { await api(`/api/jobs/${r.dataset.retry}/retry`, { method:"POST" }); toast("Retrying…", "info"); } catch (err) { toast(err.message, "error"); } return; }
+    const d = e.target.closest("[data-dismiss]");
+    if (d) { store.jobs.delete(d.dataset.dismiss); schedule(renderActive); return; }
+  });
+
+  document.addEventListener("click", (e) => {
+    const o = e.target.closest("[data-open]");
+    if (o) { openHistoryItem(o.dataset.open); return; }
+    const f = e.target.closest("[data-folder]");
+    if (f) { openHistoryFolder(f.dataset.folder); return; }
+    const del = e.target.closest("[data-del]");
+    if (del) { deleteHistoryItem(del.dataset.del); return; }
+  });
+
+  $$(".hist-filter").forEach(b => b.addEventListener("click", () => {
+    store.historyFilter = b.dataset.filter;
+    $$(".hist-filter").forEach(x => {
+      const on = x.dataset.filter === store.historyFilter;
+      x.className = "hist-filter px-3 py-1.5 rounded-md text-[11px] font-medium " +
+        (on ? "bg-blood/20 text-paper" : "text-dust hover:text-paper");
+    });
+    schedule(renderHistory);
+  }));
+  $$(".hist-filter").forEach(x => {
+    const on = x.dataset.filter === store.historyFilter;
+    x.className = "hist-filter px-3 py-1.5 rounded-md text-[11px] font-medium " +
+      (on ? "bg-blood/20 text-paper" : "text-dust hover:text-paper");
+  });
+
+  let st = null;
+  $("#hist-search").addEventListener("input", (e) => {
+    clearTimeout(st);
+    st = setTimeout(() => { store.historyQuery = e.target.value; schedule(renderHistory); }, 150);
+  });
+  $("#hist-sort").addEventListener("change", (e) => { store.historySort = e.target.value; schedule(renderHistory); });
+}
+
+// ---------- boot ----------
+async function loadHealthAndNetwork() {
+  try {
+    const h = await api("/api/health");
+    store.health = h;
+    $("#foot-dir").textContent = h.download_dir || "—";
+    // FIX #3: re-render history so host-only buttons unlock as soon as health arrives.
+    schedule(renderHistory);
+  } catch (_) {}
+  try {
+    const n = await api("/api/network");
+    store.network = n;
+    schedule(renderNetwork);
+  } catch (_) {}
+}
+async function loadHistory() {
+  try { const d = await api("/api/history"); store.history = d.items || []; schedule(renderHistory); } catch (_) {}
+}
+async function loadJobs() {
+  try { const d = await api("/api/jobs"); (d.jobs || []).forEach(j => store.jobs.set(j.id, j)); schedule(renderActive); } catch (_) {}
+}
+
+(function boot() {
+  wire();
+  renderAll();
+  loadHealthAndNetwork();
+  loadHistory();
+  loadJobs();
+  connectSSE();
+  setInterval(loadHealthAndNetwork, 60000);
+  setInterval(loadHistory, 30000);
+})();
+</script>
+</body>
+</html>

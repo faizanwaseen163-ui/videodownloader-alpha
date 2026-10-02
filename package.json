@@ -1,0 +1,14 @@
+{
+  "name": "videodownloader",
+  "version": "1.0.0",
+  "description": "Dynamic web-based YouTube video downloader with 4K/60fps support, live SSE progress, three.js animated background, and mobile-friendly LAN access.",
+  "private": true,
+  "license": "MIT",
+  "author": "VideoDownloader",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
